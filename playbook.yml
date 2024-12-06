@@ -1,0 +1,54 @@
+---
+- name: Build and push Docker image
+  hosts: localhost
+  vars:
+    project_name: "vue-paper-dashboard"
+    dockerhub_username: ""
+  tasks:
+    - name: Clone repository
+      git:
+        repo: 'https://github.com/DarciaIV/vue-paper-dashboard.git'
+        dest: ./tmp/{{ project_name }}
+        force: yes
+
+    - name: Install npm dependencies
+      command: npm install
+      args:
+        chdir: ./tmp/{{ project_name }}
+
+    - name: Build project
+      command: npm run build
+      args:
+        chdir: ./tmp/{{ project_name }}
+
+    - name: Copy Dockerfile to build context
+      copy:
+        src: Dockerfile
+        dest: ./tmp/{{ project_name }}/Dockerfile
+
+    - name: Copy nginx.conf to build context
+      copy:
+        src: nginx.conf
+        dest: ./tmp/{{ project_name }}/nginx.conf
+
+    - name: Build Docker image
+      community.docker.docker_image:
+        name: "{{ dockerhub_username }}/{{ project_name }}"
+        source: build
+        build:
+          path: ./tmp/{{ project_name }}
+          pull: yes
+
+    - name: Tag Docker image
+      community.docker.docker_image:
+        name: "{{ dockerhub_username }}/{{ project_name }}"
+        repository: "{{ dockerhub_username}}/{{ project_name }}"
+        tag: latest
+        source: local
+
+    - name: Push Docker image to DockerHub
+      community.docker.docker_image:
+        name: "{{ dockerhub_username }}/{{ project_name }}"
+        tag: latest
+        push: yes
+        source: local
